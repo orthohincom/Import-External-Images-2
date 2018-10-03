@@ -37,11 +37,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
 /* Used for debugging. */
-/*
+///*
 function phpAlert($msg) {
 		echo '<script type="text/javascript">alert("' . $msg . '")</script>';
 }
-*/
+//*/
 
 define( 'VR_EXTERNAL_IMAGES_DIR' , plugin_dir_path( __FILE__ ) );
 define( 'VR_EXTERNAL_IMAGES_URL' , plugins_url( basename( dirname( __FILE__ ) ) ) );
@@ -88,7 +88,7 @@ function vr_external_image_admin_init () {
 
 	add_filter( 'attachment_link' , 'vr_force_attachment_links_to_link_to_image' , 9 , 3 );		
 
-}
+}//exclude
 
 function vr_external_images_bulk_resize_message(){
 	global $pagenow;
@@ -104,7 +104,7 @@ function vr_external_images_bulk_resize_message(){
 			echo '</div>';
 		}
 	}
-}
+}//exclude
 
 /**
 *
@@ -117,7 +117,7 @@ function vr_external_images_bulk_resize_message(){
 **/
 function vr_external_images_bulk_resize_admin_javascript() {
 	echo "<script type=\"text/javascript\" src=\"".VR_EXTERNAL_IMAGES_URL."/import-external-images.js\" ></script>\n";
-}
+}//exclude
 	
 
 /**
@@ -136,7 +136,7 @@ function vr_external_image_get_backcatalog_ajax() {
 
 	echo json_encode( $response );
 	die();
-}
+}//exclude
 
 /**
 * Used in import-external-images.js
@@ -175,7 +175,7 @@ function vr_external_image_import_all_ajax() {
 
 	echo json_encode($results);
 	die();
-}
+}//exclude
 
 
 /**
@@ -210,9 +210,9 @@ function vr_force_attachment_links_to_link_to_image( $link , $id ) {
 
 }
 
-function vr_external_image_menu() {
+function vr_external_image_menu() { //exclude
 	add_media_page( 'Import Images', 'Import Images', 'edit_theme_options', 'vr_external_image', 'vr_external_image_options' );
-}
+}//exclude
 
 /*
 * Meta Boxes for hiding pages from main menu
@@ -252,7 +252,7 @@ function vr_import_external_images_per_post() {
 	}
 
 	$html .= 	'<input type="hidden" name="vr_import_external_images_nonce" id="vr_import_external_images_nonce" value="'.wp_create_nonce( 'vr_import_external_images_nonce' ).'" />';
-	$html .= 	'<p><input type="checkbox" name="vr_import_external_images" id="vr_import_external_images" value="vr_import-'.$_GET['post'].'" /> Import External Media?</p>';	
+	$html .= 	'<p><input type="checkbox" checked name="vr_import_external_images" id="vr_import_external_images" value="vr_import-'.$_GET['post'].'" /> Import External Media?</p>';	
 	$html .= 	'<p class="howto">Only ' . $images_count_custom . ' image and link changes will be made at a time to keep things from taking too long.</p>';
 
 	$html .= 	'</div>';
@@ -273,7 +273,7 @@ function vr_is_allowed_file( $file ) {
 		}
 	}
 
-	return false; 
+	return true;
 
 }
 
@@ -281,8 +281,8 @@ function vr_external_image_import_images( $post_id , $force = false ) {
 
 	global $pagenow;
 
-	if ( get_transient( 'vr_saving_imported_images_' .$post_id ) )
-		return;
+	//if ( get_transient( 'vr_saving_imported_images_' .$post_id ) )
+	//	return;
 
 	if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) 
 		return;
@@ -313,7 +313,7 @@ function vr_external_image_import_images( $post_id , $force = false ) {
 	
 	$count = 0;
 	for ( $i=0; $i<count($imgs); $i++ ) {
-		if ( isset($imgs[$i]) && vr_is_allowed_file($imgs[$i]) && $count < $images_count_custom ) {
+		if ( isset($imgs[$i])  && $count < $images_count_custom ) {
 			$new_img = vr_external_image_sideload( $imgs[$i], $post_id ); // $new_img = Localhost URI of the downloaded image
 			if ( $new_img ) {
 				$content = str_replace( $imgs[$i], $new_img, $content );
@@ -358,9 +358,9 @@ function vr_external_image_sideload( $file, $post_id, $desc = null ) {
 
 				// Set variables for storage, fix file filename for query strings.
 				preg_match( '/[^\?]+\.(jpe?g|jpe|gif|png|pdf)[\?]?.*\b/i', $file, $matches );
-				if ( ! $matches ) {
-						return new WP_Error( 'image_sideload_failed', __( 'Invalid image URL' ) );
-				}
+//				if ( ! $matches ) {
+//						return new WP_Error( 'image_sideload_failed', __( 'Invalid image URL' ) );
+//				}
 
 				//prepend http/https if necessary (fix for urls that start with //)
 				$downloadUrl = $file;
@@ -372,6 +372,9 @@ function vr_external_image_sideload( $file, $post_id, $desc = null ) {
 				$file_array = array();
 				$file_array['name'] = basename( strtok($matches[0], '?') );
 				$file_array['tmp_name'] = download_url( $downloadUrl );
+				
+				$ext_type = exif_imagetype($file_array['tmp_name']);
+				$ext = image_type_to_extension ($ext_type);
 
 				// If error storing temporarily, unlink.
 				if ( is_wp_error( $file_array['tmp_name'] ) ) {
@@ -380,7 +383,11 @@ function vr_external_image_sideload( $file, $post_id, $desc = null ) {
 					return false;
 				}
 
-				$desc = $file_array['name'];
+				if (empty($file_array['name'])) {
+					$file_array['name'] = md5($downloadUrl).$ext;
+				}
+
+			    $desc = $file_array['name'];
 				// Do the validation and storage stuff.
 				$id = media_handle_sideload( $file_array, $post_id, $desc );
 
@@ -415,14 +422,15 @@ function vr_external_image_get_img_tags( $post_id ) {
 
 	$result = array();
 	preg_match_all( '/<img[^>]* src=[\'"]?([^>\'" ]+)/' , $post->post_content , $matches );
-	preg_match_all( '/<a[^>]* href=[\'"]?([^>\'" ]+)/' , $post->post_content , $matches2 );
-
-	$matches[0] = array_merge( $matches[0] , $matches2[0] );
-	$matches[1] = array_merge( $matches[1] , $matches2[1] );
-
+//	preg_match_all( '/<a[^>]* href=[\'"]?([^>\'" ]+)/' , $post->post_content , $matches2 );
+//
+//	$matches[0] = array_merge( $matches[0] , $matches2[0] );
+//	$matches[1] = array_merge( $matches[1] , $matches2[1] );
+//
 	for ( $i=0; $i<count($matches[0]); $i++ ) {
+		$uriCheck = $matches[1][$i];
 		$uri = $matches[1][$i];
-		$uriCheck = strtok($uri, '?'); //strip the querystring if it has one
+//		$uriCheck = strtok($uri, '?'); //strip the querystring if it has one
 		$url_parts = parse_url($uriCheck);
 		$path_parts = pathinfo($url_parts['path']);
 
@@ -438,15 +446,15 @@ function vr_external_image_get_img_tags( $post_id ) {
 		//only check FQDNs
 		if ( $uriCheck != '' && preg_match( '/^https?:\/\//' , $uri ) ) {
 			//make sure it's external
-			if ( $s != substr( $uriCheck , 0 , strlen( $s ) ) && ( !isset( $mapped ) || $mapped != substr( $uriCheck , 0 , strlen( $mapped ) ) ) ) {
-				$path_parts['extension'] = (isset($path_parts['extension'])) ? strtolower($path_parts['extension']) : false;
-				if ( $path_parts['extension'] == 'gif' || $path_parts['extension'] == 'jpg' ||  $path_parts['extension'] == 'jpeg' || $path_parts['extension'] == 'bmp' || $path_parts['extension'] == 'png' || $path_parts['extension'] == 'pdf') {
+			if ( $s != substr( $uriCheck , 0 , strlen( $s ) ) && ( !isset( $mapped ) || $mapped != substr( $uriCheck , 0 , strlen( $mapped ) ) ) && (strpos($uriCheck, 'squarespace.com') !== false)) {
+//				$path_parts['extension'] = (isset($path_parts['extension'])) ? strtolower($path_parts['extension']) : false;
+//				if ( $path_parts['extension'] == 'gif' || $path_parts['extension'] == 'jpg' ||  $path_parts['extension'] == 'jpeg' || $path_parts['extension'] == 'bmp' || $path_parts['extension'] == 'png' || $path_parts['extension'] == 'pdf') {
 						$result[] = $uri;
-				}
+//				}
 			}
 		}
 	}
-	//print_r( $matches );
+//	//print_r( $matches );
 	$result = array_unique($result);
 	return $result;
 }
