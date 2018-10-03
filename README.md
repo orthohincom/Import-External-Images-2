@@ -1,3 +1,7 @@
+### Modified to download images from squarespace.
+### Do not use on a production site.
+
+
 === Import External Images 2 v2.0.6 ===
 
 Makes local copies of all externally linked images and (Optionally) PDFs in a post or page.
